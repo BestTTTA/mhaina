@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.claude
+Ads-sizing.png
+PROJECT_STRUCTURE.md
+QUICKSTART.md
+SETUP.md
+README.md
+CLAUDE.md
+AGENT.md
