@@ -19,7 +19,7 @@ export const metadata: Metadata = {
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
     ],
     apple: [
-      { url: '/apple-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/apple-touch-icon.png', sizes: '192x192', type: 'image/png' },
     ],
   },
 
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   openGraph: {
     title: "หมายน้า - แพลตฟอร์มสำหรับนักตกปลาในประเทศไทย",
     description: "ค้นหาพิกัดหมายตกปลา แชร์จุดตกปลาเด็ดๆ และเช็ค Ranking นักตกปลาทั่วประเทศได้ที่นี่",
-    url: "https://หมายน้า.com", // เปลี่ยนเป็นโดเมนจริงของคุณ
-    siteName: "หมายน้า (หมายน้า)",
+    url: "https://หมายน้า.com", // เปลี่ยนเป็นโดเมนจริงของคุ  ณ
+    siteName: "หมายน้า.com",
     images: [
       {
         url: "https://หมายน้า.com/og-image.jpg", // รูปภาพพรีวิวควรเป็นรูปคนตกปลาหรือแผนที่
