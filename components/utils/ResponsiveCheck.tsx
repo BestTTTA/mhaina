@@ -37,7 +37,7 @@ export function ResponsiveCheck({ children }: ResponsiveCheckProps) {
     return (
       <div className="bg-gradient-to-br from-secondary to-dark-gray text-light min-h-screen flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <h1 className="text-4xl font-bold mb-4 text-primary">มหัศจรรย์ปลา</h1>
+          <h1 className="text-4xl font-bold mb-4 text-primary">หมายน้า</h1>
           <p className="text-xl mb-4">แอปนี้ออกแบบสำหรับอุปกรณ์เคลื่อนที่เท่านั้น</p>
           <p className="text-gray-400">โปรดเข้าใช้บนโทรศัพท์มือถือ หรือแท็บเล็ต</p>
         </div>

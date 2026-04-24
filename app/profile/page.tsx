@@ -183,7 +183,7 @@ export default function ProfilePage() {
           </div>
           <div className="bg-dark-gray rounded-lg p-4 text-center">
             <p className="text-primary font-bold text-2xl">{profile.total_catches}</p>
-            <p className="text-gray-400 text-sm">รวมหมุด</p>
+            <p className="text-gray-400 text-sm">รวหมายน้ามุด</p>
           </div>
         </div>
       )}

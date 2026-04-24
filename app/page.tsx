@@ -114,7 +114,7 @@ export default function HomePage() {
 
       {/* Main Content */}
       <div className="p-4 space-y-6">
-        <h1 className="text-2xl font-bold text-light font-noto-sans">มหัศจรรย์ปลา</h1>
+        <h1 className="text-2xl font-bold text-light font-noto-sans">หมายน้า</h1>
 
         {/* Carousel */}
         <div>

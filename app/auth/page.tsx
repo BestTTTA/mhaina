@@ -20,7 +20,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <h1 className="text-4xl font-bold text-center text-primary mb-2 font-noto-sans">
-          มหัศจรรย์ปลา
+          หมายน้า
         </h1>
         <p className="text-center text-gray-400 mb-8">
           แอปพลิเคชันสำหรับนักตกปลา
