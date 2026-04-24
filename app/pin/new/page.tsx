@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Camera, ImagePlus, MapPin } from 'lucide-react';
@@ -9,12 +9,11 @@ import { pinService } from '@/lib/api';
 import { FISH_SPECIES } from '@/lib/utils';
 import { getCurrentLocation } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 export default function NewPinPage() {
   const { user } = useAuthStore();
   const router = useRouter();
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const uploadRef = useRef<HTMLInputElement>(null);
 
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [fishSpecies, setFishSpecies] = useState('');
@@ -42,13 +41,10 @@ export default function NewPinPage() {
     getLocation();
   }, []);
 
-  const handleCameraCapture = async () => {
-    if (!cameraRef.current) return;
-    cameraRef.current.click();
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, source: 'camera' | 'upload') => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset so the same file can be picked again after removal.
+    e.target.value = '';
     if (!file) return;
 
     if (images.length >= 2) {
@@ -59,7 +55,6 @@ export default function NewPinPage() {
     const newImages = [...images, file];
     setImages(newImages);
 
-    // Create preview
     const reader = new FileReader();
     reader.onload = () => {
       setPreviews([...previews, reader.result as string]);
@@ -149,19 +144,13 @@ export default function NewPinPage() {
         {/* Fish Species */}
         <div>
           <label className="block text-light font-medium mb-2">ชนิดปลา *</label>
-          <select
+          <SearchableSelect
             value={fishSpecies}
-            onChange={(e) => setFishSpecies(e.target.value)}
+            onChange={setFishSpecies}
+            options={FISH_SPECIES}
+            placeholder="เลือกชนิดปลา"
             required
-            className="w-full px-4 py-2 rounded-lg bg-dark-gray text-light border border-dark-gray focus:border-primary outline-none"
-          >
-            <option value="">เลือกชนิดปลา</option>
-            {FISH_SPECIES.map((species) => (
-              <option key={species} value={species}>
-                {species}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         {/* Weight */}
@@ -217,44 +206,34 @@ export default function NewPinPage() {
             </div>
           )}
 
-          {/* Upload Buttons */}
+          {/* Upload Buttons — using <label>+<input> so the browser sees a native
+              user gesture. Programmatic .click() on a hidden input causes some
+              Android browsers to ignore `capture` and fall back to file picker. */}
           {images.length < 2 && (
             <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={handleCameraCapture}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-dark-gray hover:bg-opacity-80 text-light rounded-lg border border-dark-gray transition-all"
-              >
+              <label className="flex items-center justify-center gap-2 px-4 py-3 bg-dark-gray hover:bg-opacity-80 text-light rounded-lg border border-dark-gray transition-all cursor-pointer">
                 <Camera size={20} />
                 ถ่ายรูป
-              </button>
-              <button
-                type="button"
-                onClick={() => uploadRef.current?.click()}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-dark-gray hover:bg-opacity-80 text-light rounded-lg border border-dark-gray transition-all"
-              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleImageUpload}
+                  className="sr-only"
+                />
+              </label>
+              <label className="flex items-center justify-center gap-2 px-4 py-3 bg-dark-gray hover:bg-opacity-80 text-light rounded-lg border border-dark-gray transition-all cursor-pointer">
                 <ImagePlus size={20} />
                 อัพโหลด
-              </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="sr-only"
+                />
+              </label>
             </div>
           )}
-
-          {/* Hidden Inputs */}
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => handleImageUpload(e, 'camera')}
-            className="hidden"
-          />
-          <input
-            ref={uploadRef}
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleImageUpload(e, 'upload')}
-            className="hidden"
-          />
         </div>
 
         {/* Submit Button */}

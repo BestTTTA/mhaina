@@ -9,6 +9,7 @@ import { FishingPin } from '@/lib/types';
 import { useAuthStore } from '@/lib/store';
 import { FISH_SPECIES, DISTANCE_OPTIONS, formatDateThai, formatNumber } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 const mapContainerStyle = { width: '100%', height: '100%' };
 const MARKER_SIZE = 48;
@@ -266,16 +267,16 @@ export default function MapPage() {
       <div className="absolute top-0 left-0 right-0 bg-secondary/80 backdrop-blur p-4 space-y-3 z-40">
         <h1 className="text-lg font-bold text-light">แผนที่ปักหมุด</h1>
         <div className="flex gap-2">
-          <select
-            value={selectedSpecies}
-            onChange={(e) => setSelectedSpecies(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-lg bg-dark-gray text-light border border-dark-gray focus:border-primary outline-none text-sm"
-          >
-            <option value="">ทั้งหมด</option>
-            {FISH_SPECIES.map((species) => (
-              <option key={species} value={species}>{species}</option>
-            ))}
-          </select>
+          <div className="flex-1">
+            <SearchableSelect
+              value={selectedSpecies}
+              onChange={setSelectedSpecies}
+              options={FISH_SPECIES}
+              placeholder="ชนิดปลา"
+              allowEmpty
+              emptyLabel="ทั้งหมด"
+            />
+          </div>
           <select
             value={selectedDistance || ''}
             onChange={(e) => setSelectedDistance(e.target.value ? parseInt(e.target.value) : null)}

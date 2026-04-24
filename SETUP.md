@@ -152,7 +152,6 @@ npm run dev
 
 - **Email/Password**: สมัครสมาชิกและเข้าสู่ระบบ
 - **Google OAuth**: เข้าด้วย Google
-- **LINE OAuth**: เข้าด้วย LINE
 
 ## 📦 Build & Deploy
 
