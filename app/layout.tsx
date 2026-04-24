@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/Toaster';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'มหัศจรรย์ปลา - แอปจดบันทึกตกปลา',
+  title: 'หมายน้า - แพลตฟอร์มสำหรับนักตกปลาในประเทศไทย',
   description: 'แอปพลิเคชันสำหรับนักตกปลา ปักหมุดตำแหน่ง แชร์ผลงาน และติดตามอันดับ',
 };
 

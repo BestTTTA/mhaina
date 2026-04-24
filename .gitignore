@@ -41,9 +41,9 @@ yarn-error.log*
 next-env.d.ts
 .claude
 Ads-sizing.png
-PROJECT_STRUCTURE.md
-QUICKSTART.md
-SETUP.md
-README.md
-CLAUDE.md
-AGENT.md
+PROJECT_STRUCTURE
+QUICKSTART
+SETUP
+README
+CLAUDE
+AGENT
