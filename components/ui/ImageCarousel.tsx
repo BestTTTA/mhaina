@@ -50,7 +50,12 @@ export function ImageCarousel({ images, onAdClick }: CarouselProps) {
         >
           <div className="text-center">
             <p className="text-2xl font-bold text-light mb-2">ติดตามเราได้ที่นี่</p>
-            <p className="text-light">ที่ Facebook Page ของเรา</p>
+            <p className="text-light mb-4">ที่ หมายน้า.com</p>
+
+            {/* ปุ่ม */}
+            <span className="inline-block px-6 py-2 bg-white text-red-600 font-semibold rounded-full shadow hover:bg-gray-100 transition">
+              เยี่ยมชมเพจ
+            </span>
           </div>
         </Link>
       )}
@@ -75,9 +80,8 @@ export function ImageCarousel({ images, onAdClick }: CarouselProps) {
           <button
             key={index}
             onClick={() => setCurrentIndex(index)}
-            className={`h-2 rounded-full transition-all ${
-              index === currentIndex ? 'bg-primary w-6' : 'bg-gray-400 w-2'
-            }`}
+            className={`h-2 rounded-full transition-all ${index === currentIndex ? 'bg-primary w-6' : 'bg-gray-400 w-2'
+              }`}
           />
         ))}
       </div>

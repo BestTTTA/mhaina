@@ -132,7 +132,7 @@ export default function MapPage() {
   }
 
   return (
-    <div className="relative w-full h-screen flex flex-col">
+    <div className="relative w-full h-[calc(100vh-3.5rem)] flex flex-col">
       <div className="flex-1">
         <GoogleMap
           mapContainerStyle={mapContainerStyle}

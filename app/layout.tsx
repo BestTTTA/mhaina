@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { SupabaseProvider } from '@/components/providers/SupabaseProvider';
 import { ResponsiveCheck } from '@/components/utils/ResponsiveCheck';
 import { BottomNavigation } from '@/components/navigation/BottomNavigation';
+import { TopBar } from '@/components/navigation/TopBar';
 import { Toaster } from '@/components/ui/Toaster';
 import './globals.css';
 
@@ -91,7 +92,8 @@ export default function RootLayout({
       <body className="bg-secondary text-light font-thai-sans h-full">
         <SupabaseProvider>
           <ResponsiveCheck>
-            <div className="pb-24">
+            <TopBar />
+            <div className="pt-14 pb-24">
               {children}
             </div>
             <BottomNavigation />

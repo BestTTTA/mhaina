@@ -14,7 +14,7 @@ import { UserStats, FishingPin } from '@/lib/types';
 const POPUP_ADS = [
   '/ads/popup/ติดต่อลงโฆษณา.png',
   '/ads/popup/ad-1.png',
-  '/ads/popup/ad-2.png',
+  '/ads/popup/ad-1.png',
 ];
 const POPUP_INTERVAL_MS = 4000;
 

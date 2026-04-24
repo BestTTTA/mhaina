@@ -41,9 +41,4 @@ yarn-error.log*
 next-env.d.ts
 .claude
 Ads-sizing.png
-PROJECT_STRUCTURE
-QUICKSTART
-SETUP
-README
-CLAUDE
-AGENT
+creden.json

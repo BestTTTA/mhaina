@@ -64,23 +64,6 @@ export function LoginForm() {
     }
   };
 
-  const handleLineLogin = async () => {
-    // LINE OAuth would be configured in Supabase
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'line' as any, // Custom OIDC provider configured in Supabase dashboard
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-        },
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -95,14 +78,7 @@ export function LoginForm() {
           เข้าด้วย Google
         </button>
 
-        <button
-          onClick={handleLineLogin}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-[#00B900] text-light py-3 rounded-lg hover:bg-opacity-90 transition-all font-medium disabled:opacity-50"
-        >
-          <Send size={20} />
-          เข้าด้วย LINE
-        </button>
+
       </div>
 
       {/* Divider */}
