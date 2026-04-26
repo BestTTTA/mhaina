@@ -19,8 +19,17 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+      if (cancelled) return;
+      if (
+        session &&
+        (event === 'PASSWORD_RECOVERY' ||
+          event === 'SIGNED_IN' ||
+          event === 'INITIAL_SESSION' ||
+          event === 'TOKEN_REFRESHED')
+      ) {
         setStatus('ready');
       }
     });
@@ -29,51 +38,62 @@ export default function ResetPasswordPage() {
       const url = new URL(window.location.href);
       const hash = new URLSearchParams(window.location.hash.slice(1));
 
-      // Supabase appends ?error_description= or #error_description= when the
-      // recovery link is invalid/expired. Surface that instead of pretending
-      // the link "didn't load yet".
+      // Surface explicit errors first — Supabase appends them when the link
+      // is invalid/expired.
       const errDesc =
         hash.get('error_description') || url.searchParams.get('error_description');
       if (errDesc) {
+        if (cancelled) return;
         setError(decodeURIComponent(errDesc.replace(/\+/g, ' ')));
         setStatus('invalid');
         return;
       }
 
-      // PKCE flow: the recovery link redirects to /auth/reset-password?code=xxx
-      // and we have to manually exchange that code for a session — the SDK
-      // does not auto-consume PKCE codes on page load.
-      const code = url.searchParams.get('code');
-      if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          setError(exchangeError.message);
-          setStatus('invalid');
-          return;
+      // The SDK auto-detects URL params on init (detectSessionInUrl=true) and
+      // may have already exchanged the PKCE code. Always check the current
+      // session FIRST so we don't try to re-exchange a consumed code.
+      let { data } = await supabase.auth.getSession();
+
+      if (!data.session) {
+        const code = url.searchParams.get('code');
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            // Race — SDK may have consumed the code between our checks.
+            const recheck = await supabase.auth.getSession();
+            if (!cancelled && recheck.data.session) {
+              window.history.replaceState({}, '', '/auth/reset-password');
+              setStatus('ready');
+              return;
+            }
+            if (cancelled) return;
+            setError(exchangeError.message);
+            setStatus('invalid');
+            return;
+          }
+          ({ data } = await supabase.auth.getSession());
         }
-        // Drop the code from the URL so a refresh doesn't try to reuse it.
+      }
+
+      if (cancelled) return;
+      if (data.session) {
         window.history.replaceState({}, '', '/auth/reset-password');
         setStatus('ready');
         return;
       }
 
-      // Implicit flow: tokens are in the hash and the SDK consumes them
-      // automatically. We just confirm a session exists.
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        setStatus((s) => (s === 'verifying' ? 'ready' : s));
-        return;
-      }
-
-      // Give the SDK a moment in case PASSWORD_RECOVERY is still in flight.
+      // No session and no code in URL — wait briefly for any pending event
+      // before declaring the link invalid.
       setTimeout(() => {
+        if (cancelled) return;
         setStatus((s) => (s === 'verifying' ? 'invalid' : s));
-      }, 1500);
+      }, 2000);
     };
 
     init();
 
     return () => {
+      cancelled = true;
       sub.subscription.unsubscribe();
     };
   }, []);

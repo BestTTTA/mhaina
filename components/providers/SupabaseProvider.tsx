@@ -95,8 +95,20 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
+    } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
       if (cancelled) return;
+
+      // Recovery links can land on any page (Supabase falls back to Site URL
+      // when redirectTo is rejected). When the SDK detects a recovery code
+      // it emits PASSWORD_RECOVERY — route to the reset-password screen no
+      // matter where the user actually landed.
+      if (event === 'PASSWORD_RECOVERY' && typeof window !== 'undefined') {
+        if (!window.location.pathname.startsWith('/auth/reset-password')) {
+          window.location.replace('/auth/reset-password');
+          return;
+        }
+      }
+
       if (session?.user) {
         setUser({
           id: session.user.id,
