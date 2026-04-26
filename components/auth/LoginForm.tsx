@@ -64,11 +64,12 @@ export function LoginForm() {
     setError(null);
 
     try {
-      const appUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        (typeof window !== 'undefined' ? window.location.origin : '');
+      // Always use the runtime origin — NEXT_PUBLIC_APP_URL gets baked into
+      // the bundle at build time, so a build made on localhost ships with
+      // "http://localhost:3000" hardcoded into prod, which is exactly what
+      // breaks the recovery link in production.
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${appUrl}/auth/reset-password`,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
       });
       if (resetError) throw resetError;
       setResetSent(true);
@@ -85,7 +86,7 @@ export function LoginForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           scopes: 'profile email',
         },
       });
