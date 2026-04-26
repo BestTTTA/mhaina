@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Flame } from 'lucide-react';
 import { ImageCarousel } from '@/components/ui/ImageCarousel';
 import { RankingList } from '@/components/ui/RankingList';
 import { PinCard } from '@/components/ui/PinCard';
@@ -13,8 +14,7 @@ import { UserStats, FishingPin } from '@/lib/types';
 // Drop replacement images at these paths (or rename and update here).
 const POPUP_ADS = [
   '/ads/popup/ติดต่อลงโฆษณา.png',
-  '/ads/popup/ad-1.png',
-  '/ads/popup/ad-1.png',
+  '/ads/popup/ad-1.png'
 ];
 const POPUP_INTERVAL_MS = 4000;
 
@@ -24,6 +24,44 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showAdPopup, setShowAdPopup] = useState(true);
   const [popupIndex, setPopupIndex] = useState(0);
+  const popupTouchStartXRef = useRef<number | null>(null);
+  const popupTouchStartYRef = useRef<number | null>(null);
+
+  const handlePopupTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    popupTouchStartXRef.current = touch.clientX;
+    popupTouchStartYRef.current = touch.clientY;
+  };
+
+  const handlePopupTouchMove = (e: React.TouchEvent) => {
+    if (popupTouchStartXRef.current === null || popupTouchStartYRef.current === null) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - popupTouchStartXRef.current;
+    const deltaY = touch.clientY - popupTouchStartYRef.current;
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePopupTouchEnd = (e: React.TouchEvent) => {
+    if (popupTouchStartXRef.current === null || popupTouchStartYRef.current === null) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - popupTouchStartXRef.current;
+    const deltaY = touch.clientY - popupTouchStartYRef.current;
+    if (
+      POPUP_ADS.length > 1 &&
+      Math.abs(deltaX) > Math.abs(deltaY) &&
+      Math.abs(deltaX) > 40
+    ) {
+      if (deltaX < 0) {
+        setPopupIndex((i) => (i + 1) % POPUP_ADS.length);
+      } else {
+        setPopupIndex((i) => (i - 1 + POPUP_ADS.length) % POPUP_ADS.length);
+      }
+    }
+    popupTouchStartXRef.current = null;
+    popupTouchStartYRef.current = null;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,7 +108,12 @@ export default function HomePage() {
       {/* Ad Popup */}
       {showAdPopup && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="relative w-72 aspect-[2/3] bg-dark-gray rounded-lg overflow-hidden shadow-2xl">
+          <div
+            className="relative w-72 aspect-[2/3] bg-dark-gray rounded-lg overflow-hidden shadow-2xl touch-pan-y select-none"
+            onTouchStart={handlePopupTouchStart}
+            onTouchMove={handlePopupTouchMove}
+            onTouchEnd={handlePopupTouchEnd}
+          >
             {POPUP_ADS.map((src, idx) => (
               <Image
                 key={src}
@@ -114,7 +157,7 @@ export default function HomePage() {
 
       {/* Main Content */}
       <div className="p-4 space-y-6">
-        <h1 className="text-2xl font-bold text-light font-noto-sans">หมายน้า</h1>
+        {/* <h1 className="text-2xl font-bold text-light font-noto-sans">หมายน้า</h1> */}
 
         {/* Carousel */}
         <div>
@@ -142,14 +185,26 @@ export default function HomePage() {
         {popularPins.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-light">หมุดยอดฮิต</h2>
-              <Link href="/map" className="text-accent hover:text-blue-400 text-sm">
+              <h2 className="text-2xl font-extrabold tracking-wide flex items-center gap-2">
+                <Flame
+                  size={26}
+                  className="text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)] animate-pulse"
+                  fill="currentColor"
+                />
+                <span className="bg-gradient-to-r from-amber-300 via-orange-500 to-rose-500 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(251,113,133,0.45)]">
+                  หมายยอดฮิต
+                </span>
+              </h2>
+              <Link
+                href="/map"
+                className="text-accent hover:text-blue-400 text-sm font-medium"
+              >
                 ดูทั้งหมด →
               </Link>
             </div>
             <div className="grid grid-cols-1 gap-4">
               {popularPins.map((pin, idx) => (
-                <PinCard key={pin.id} pin={pin} priority={idx === 0} />
+                <PinCard key={pin.id} pin={pin} priority={idx === 0} rank={idx + 1} />
               ))}
             </div>
           </div>

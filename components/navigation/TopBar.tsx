@@ -13,9 +13,22 @@ export function TopBar() {
     <header className="fixed top-0 left-0 right-0 h-14 bg-secondary border-b border-dark-gray z-50 flex items-center justify-between px-4">
       <Link
         href="/"
-        className="font-noto-sans font-bold text-light text-lg hover:opacity-80 transition-opacity"
+        aria-label="หมายน้า — กลับหน้าหลัก"
+        className="flex items-center gap-2 hover:opacity-90 transition-opacity"
       >
-        หมายน้า
+        <span className="relative w-9 h-9 rounded-xl overflow-hidden ring-1 ring-primary/40 shadow-[0_0_14px_rgba(255,68,68,0.45)]">
+          <Image
+            src="/android-chrome-192x192.png"
+            alt=""
+            fill
+            sizes="36px"
+            className="object-cover"
+            priority
+          />
+        </span>
+        <span className="font-noto-sans font-extrabold text-xl tracking-wide bg-gradient-to-r from-primary via-amber-400 to-accent bg-clip-text text-transparent drop-shadow-[0_1px_8px_rgba(255,68,68,0.35)]">
+          หมายน้า
+        </span>
       </Link>
 
       {user ? (

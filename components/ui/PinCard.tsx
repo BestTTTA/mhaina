@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Heart, ExternalLink, Trash2 } from 'lucide-react';
 import { FishingPin } from '@/lib/types';
 import { formatDateThai, formatNumber } from '@/lib/utils';
+import { getRankNameClasses, getRankMedal, isTopRank } from './rankStyles';
 
 interface PinCardProps {
   pin: FishingPin;
@@ -13,9 +14,16 @@ interface PinCardProps {
   onDelete?: (pinId: string) => void;
   deleting?: boolean;
   priority?: boolean;
+  /** Rank within a leaderboard (1-based). 1–5 get colorful styling. */
+  rank?: number;
 }
 
-export function PinCard({ pin, onLike, isLiked = false, onDelete, deleting = false, priority = false }: PinCardProps) {
+export function PinCard({ pin, onLike, isLiked = false, onDelete, deleting = false, priority = false, rank }: PinCardProps) {
+  const top = !!rank && isTopRank(rank);
+  const speciesClass = top
+    ? `${getRankNameClasses(rank!)} text-lg`
+    : 'text-primary font-bold text-lg';
+  const medal = rank ? getRankMedal(rank) : null;
   return (
     <div className="bg-dark-gray rounded-lg overflow-hidden hover:shadow-lg transition-all">
       {/* Image */}
@@ -55,9 +63,21 @@ export function PinCard({ pin, onLike, isLiked = false, onDelete, deleting = fal
 
         {/* Fish Info */}
         <div className="mb-3">
-          <p className="text-primary font-bold text-lg">{pin.fish_species}</p>
+          <div className="flex items-center gap-2">
+            {medal && <span className="text-xl leading-none">{medal}</span>}
+            {top && !medal && (
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
+                  rank === 4 ? 'border-sky-400/60 text-sky-300' : 'border-fuchsia-400/60 text-fuchsia-300'
+                }`}
+              >
+                อันดับ {rank}
+              </span>
+            )}
+            <p className={speciesClass}>{pin.fish_species}</p>
+          </div>
           {pin.fish_weight && (
-            <p className="text-gray-400 text-sm">{pin.fish_weight} กก.</p>
+            <p className="text-gray-400 text-sm mt-1">{pin.fish_weight} กก.</p>
           )}
           {pin.description && (
             <p className="text-light text-sm mt-2 line-clamp-2">{pin.description}</p>

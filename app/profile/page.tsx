@@ -8,6 +8,7 @@ import { Camera, LogOut, Edit2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/lib/toast';
+import { NICKNAME_MAX_LENGTH } from '@/lib/utils';
 
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
@@ -45,11 +46,20 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async () => {
     if (!profile) return;
+    const trimmed = nickname.trim();
+    if (!trimmed) {
+      toast('error', 'กรุณากรอกชื่อเล่น');
+      return;
+    }
+    if (trimmed.length > NICKNAME_MAX_LENGTH) {
+      toast('error', `ชื่อเล่นยาวได้สูงสุด ${NICKNAME_MAX_LENGTH} ตัวอักษร`);
+      return;
+    }
     setLoading(true);
     try {
-      const updated = await userService.updateProfile(user!.id, { nickname, bio });
+      const updated = await userService.updateProfile(user!.id, { nickname: trimmed, bio });
       if (updated) {
-        setProfile({ ...profile, nickname, bio });
+        setProfile({ ...profile, nickname: trimmed, bio });
         setIsEditing(false);
         toast('success', 'บันทึกข้อมูลสำเร็จ');
       } else {
@@ -128,13 +138,19 @@ export default function ProfilePage() {
         {/* Edit Mode */}
         {isEditing ? (
           <div className="space-y-4">
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="ชื่อเล่น"
-              className="w-full px-4 py-2 rounded-lg bg-secondary text-light border border-dark-gray focus:border-primary outline-none text-center"
-            />
+            <div>
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value.slice(0, NICKNAME_MAX_LENGTH))}
+                placeholder="ชื่อเล่น"
+                maxLength={NICKNAME_MAX_LENGTH}
+                className="w-full px-4 py-2 rounded-lg bg-secondary text-light border border-dark-gray focus:border-primary outline-none text-center"
+              />
+              <p className="text-gray-500 text-xs mt-1 text-right">
+                {nickname.length}/{NICKNAME_MAX_LENGTH}
+              </p>
+            </div>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}

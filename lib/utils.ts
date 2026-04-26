@@ -1,3 +1,13 @@
+// Maximum length for user-set display names. Applied at every place that
+// reads or writes a nickname so DB rows stay within the limit and UI
+// rendering doesn't have to truncate visually.
+export const NICKNAME_MAX_LENGTH = 15;
+
+export const truncateNickname = (name: string | null | undefined): string => {
+  if (!name) return '';
+  return name.length > NICKNAME_MAX_LENGTH ? name.slice(0, NICKNAME_MAX_LENGTH) : name;
+};
+
 // Calculate distance between two coordinates in km
 export const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
   const R = 6371; // Earth's radius in km

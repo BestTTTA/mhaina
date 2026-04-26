@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { pinService } from '@/lib/api';
 import { FishingPin } from '@/lib/types';
-import { Heart, MapPin, ArrowLeft, Trash2 } from 'lucide-react';
+import { Heart, MapPin, ArrowLeft, Trash2, Navigation } from 'lucide-react';
 import Link from 'next/link';
 import { formatDateThai, formatNumber } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
@@ -164,13 +164,26 @@ export default function PinDetailPage({ params }: { params: Promise<{ id: string
           )}
         </div>
 
-        {/* Location */}
-        <div className="bg-dark-gray rounded-lg p-4 flex items-center gap-3">
-          <MapPin className="text-primary flex-shrink-0" size={24} />
-          <div>
-            <p className="text-gray-400 text-sm">ตำแหน่ง</p>
-            <p className="text-light">{pin.latitude.toFixed(4)}, {pin.longitude.toFixed(4)}</p>
+        {/* Location + navigate */}
+        <div className="bg-dark-gray rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <MapPin className="text-primary flex-shrink-0" size={24} />
+            <div className="min-w-0">
+              <p className="text-gray-400 text-sm">ตำแหน่ง</p>
+              <p className="text-light truncate">
+                {pin.latitude.toFixed(5)}, {pin.longitude.toFixed(5)}
+              </p>
+            </div>
           </div>
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${pin.latitude},${pin.longitude}&travelmode=driving`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+          >
+            <Navigation size={20} />
+            ไปตามหมาย
+          </a>
         </div>
 
         {/* Second Image */}

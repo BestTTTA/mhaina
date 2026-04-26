@@ -76,10 +76,10 @@ const attachUserProfiles = async (pins: FishingPin[]): Promise<FishingPin[]> => 
 
 // ============ Fishing Pin Services ============
 export const pinService = {
-  async createPin(pin: Omit<FishingPin, 'id' | 'created_at' | 'updated_at'> & { image_url_1: File; image_url_2?: File }): Promise<FishingPin | null> {
-    // Upload images first
+  async createPin(pin: Omit<FishingPin, 'id' | 'created_at' | 'updated_at'> & { image_url_1: File; image_url_2?: File }): Promise<FishingPin> {
+    // Upload images first. uploadImage throws on failure, which propagates.
     const img1Url = await uploadImage(pin.user_id, pin.image_url_1 as any);
-    let img2Url = null;
+    let img2Url: string | null = null;
     if (pin.image_url_2) {
       img2Url = await uploadImage(pin.user_id, pin.image_url_2 as any);
     }
@@ -102,7 +102,13 @@ export const pinService = {
       .select()
       .single();
 
-    if (error) console.error('Error creating pin:', error);
+    if (error) {
+      console.error('Insert pin error:', error);
+      throw new Error(`บันทึกหมุดไม่สำเร็จ: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error('บันทึกหมุดไม่สำเร็จ — ไม่ได้รับข้อมูลกลับ');
+    }
     return data;
   },
 
@@ -299,7 +305,7 @@ const extractStoragePath = (url: string | null | undefined, bucket: string): str
   return decodeURIComponent(url.slice(idx + marker.length).split('?')[0]);
 };
 
-const uploadImage = async (userId: string, file: File): Promise<string | null> => {
+const uploadImage = async (userId: string, file: File): Promise<string> => {
   const webp = await convertToWebP(file, { maxSize: 1600 });
   const ext = webp.type === 'image/webp' ? 'webp' : webp.name.split('.').pop();
   const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -309,18 +315,17 @@ const uploadImage = async (userId: string, file: File): Promise<string | null> =
     .upload(fileName, webp, { contentType: webp.type });
 
   if (error) {
-    console.error('Error uploading image:', error);
-    return null;
+    console.error('Storage upload error:', error);
+    throw new Error(`อัพโหลดรูปไม่สำเร็จ: ${error.message}`);
+  }
+  if (!data) {
+    throw new Error('อัพโหลดรูปไม่สำเร็จ — ไม่ได้รับข้อมูลกลับ');
   }
 
-  if (data) {
-    const { data: urlData } = supabase.storage
-      .from('fishing-images')
-      .getPublicUrl(data.path);
-    return urlData.publicUrl;
-  }
-
-  return null;
+  const { data: urlData } = supabase.storage
+    .from('fishing-images')
+    .getPublicUrl(data.path);
+  return urlData.publicUrl;
 };
 
 const calculateDistanceSimple = (lat1: number, lng1: number, lat2: number, lng2: number): number => {

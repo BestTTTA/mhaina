@@ -4,10 +4,22 @@ import { useEffect, ReactNode } from 'react';
 import { useAuthStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { userService } from '@/lib/api';
+import { truncateNickname } from '@/lib/utils';
 import type { AuthStore } from '@/lib/store';
 
 interface SupabaseProviderProps {
   children: ReactNode;
+}
+
+// Race a promise against a timeout. On timeout the race rejects, letting the
+// caller decide how to recover instead of awaiting forever.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms)
+    ),
+  ]);
 }
 
 export function SupabaseProvider({ children }: SupabaseProviderProps) {
@@ -17,62 +29,74 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
   const setIsAuthenticated = useAuthStore((state: AuthStore) => state.setIsAuthenticated);
 
   useEffect(() => {
-    let resolved = false;
-    const finish = () => {
-      if (resolved) return;
-      resolved = true;
-      clearTimeout(safetyTimer);
-      setIsLoading(false);
-    };
-    // Hard ceiling: if getSession hasn't returned in 5s (network stall, slow cold
-    // start), release the auth gate so pages don't show the spinner forever.
-    const safetyTimer = setTimeout(() => {
-      if (resolved) return;
-      console.warn('[SupabaseProvider] auth check exceeded 5s — releasing loading gate');
-      finish();
-    }, 5000);
+    let cancelled = false;
 
     const checkAuth = async () => {
+      let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null;
+
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            user_metadata: session.user.user_metadata,
-          });
-          setIsAuthenticated(true);
+        // On return visits Supabase tries to refresh an expired access token.
+        // If the refresh endpoint hangs or localStorage is corrupted, getSession
+        // can stall indefinitely. Cap it at 3s; on timeout we wipe the local
+        // session so the user gets a clean login screen instead of a spinner.
+        const result = await withTimeout(supabase.auth.getSession(), 3000, 'getSession');
+        session = result.data.session;
+      } catch (error) {
+        console.warn('[SupabaseProvider] getSession failed or timed out — clearing stale session', error);
+        try {
+          await supabase.auth.signOut({ scope: 'local' });
+        } catch (signOutError) {
+          console.warn('[SupabaseProvider] signOut also failed:', signOutError);
         }
-        finish();
+        if (!cancelled) setIsLoading(false);
+        return;
+      }
 
-        if (session?.user) {
-          let profile = await userService.getProfile(session.user.id);
+      if (cancelled) return;
+
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          user_metadata: session.user.user_metadata,
+        });
+        setIsAuthenticated(true);
+      }
+      setIsLoading(false);
+
+      // Profile fetch runs in the background — never blocks the UI.
+      if (session?.user) {
+        try {
+          let profile = await withTimeout(
+            userService.getProfile(session.user.id),
+            5000,
+            'getProfile'
+          );
+          if (cancelled) return;
           if (!profile) {
-            const nickname =
+            const rawNickname =
               session.user.user_metadata?.nickname ||
               session.user.email?.split('@')[0] ||
               'นักตกปลา';
-            profile = await userService.createProfile(session.user.id, nickname);
+            profile = await withTimeout(
+              userService.createProfile(session.user.id, truncateNickname(rawNickname)),
+              5000,
+              'createProfile'
+            );
           }
-          if (profile) {
-            setProfile(profile);
-          }
+          if (!cancelled && profile) setProfile(profile);
+        } catch (error) {
+          console.warn('[SupabaseProvider] profile fetch failed (non-fatal):', error);
         }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        finish();
       }
     };
 
     checkAuth();
 
-    // Listen to auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+    } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
+      if (cancelled) return;
       if (session?.user) {
         setUser({
           id: session.user.id,
@@ -81,9 +105,15 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
         });
         setIsAuthenticated(true);
 
-        const profile = await userService.getProfile(session.user.id);
-        if (profile) {
-          setProfile(profile);
+        try {
+          const profile = await withTimeout(
+            userService.getProfile(session.user.id),
+            5000,
+            'onAuthStateChange getProfile'
+          );
+          if (!cancelled && profile) setProfile(profile);
+        } catch (error) {
+          console.warn('[SupabaseProvider] onAuthStateChange profile fetch failed:', error);
         }
       } else {
         setUser(null);
@@ -93,7 +123,7 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
     });
 
     return () => {
-      clearTimeout(safetyTimer);
+      cancelled = true;
       subscription?.unsubscribe();
     };
   }, [setUser, setProfile, setIsLoading, setIsAuthenticated]);

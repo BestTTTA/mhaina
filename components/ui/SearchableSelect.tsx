@@ -8,7 +8,6 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   options: string[];
   placeholder?: string;
-  required?: boolean;
   allowEmpty?: boolean;
   emptyLabel?: string;
 }
@@ -18,7 +17,6 @@ export function SearchableSelect({
   onChange,
   options,
   placeholder = 'เลือก...',
-  required = false,
   allowEmpty = false,
   emptyLabel = 'ทั้งหมด',
 }: SearchableSelectProps) {
@@ -75,6 +73,12 @@ export function SearchableSelect({
         />
       </button>
 
+      {/* Note: we intentionally do NOT render a hidden `<input required>` here.
+          A `required` sr-only input blocks form submission silently when empty —
+          the browser tries to focus the invalid control, fails because it's off
+          screen, and the submit just… doesn't fire. Callers should validate
+          the value in JS before submitting. */}
+
       {open && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-secondary border border-dark-gray rounded-lg shadow-2xl z-50 overflow-hidden">
           <div className="p-2 border-b border-dark-gray">
@@ -128,16 +132,6 @@ export function SearchableSelect({
         </div>
       )}
 
-      {required && (
-        <input
-          tabIndex={-1}
-          aria-hidden
-          required
-          value={value}
-          onChange={() => {}}
-          className="sr-only"
-        />
-      )}
     </div>
   );
 }

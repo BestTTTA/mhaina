@@ -10,10 +10,12 @@ import { FISH_SPECIES } from '@/lib/utils';
 import { getCurrentLocation } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useToast } from '@/lib/toast';
 
 export default function NewPinPage() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const toast = useToast();
 
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [fishSpecies, setFishSpecies] = useState('');
@@ -86,11 +88,17 @@ export default function NewPinPage() {
       return;
     }
 
+    if (!user) {
+      setError('กรุณาเข้าสู่ระบบก่อนปักหมุด');
+      toast('error', 'กรุณาเข้าสู่ระบบก่อนปักหมุด');
+      return;
+    }
+
     setLoading(true);
 
     try {
       await pinService.createPin({
-        user_id: user!.id,
+        user_id: user.id,
         latitude: location.lat,
         longitude: location.lng,
         fish_species: fishSpecies,
@@ -101,10 +109,13 @@ export default function NewPinPage() {
         likes_count: 0,
       });
 
-      // Navigate to success page or back to map
+      toast('success', 'ปักหมุดสำเร็จ');
       router.push('/map');
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาด');
+      console.error('createPin failed:', err);
+      const msg = err?.message || 'เกิดข้อผิดพลาดที่ไม่รู้จัก';
+      setError(msg);
+      toast('error', msg);
     } finally {
       setLoading(false);
     }
@@ -149,7 +160,6 @@ export default function NewPinPage() {
             onChange={setFishSpecies}
             options={FISH_SPECIES}
             placeholder="เลือกชนิดปลา"
-            required
           />
         </div>
 

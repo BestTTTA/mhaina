@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { userService } from '@/lib/api';
+import { truncateNickname } from '@/lib/utils';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -22,10 +23,10 @@ export default function AuthCallback() {
 
           if (!profile) {
             // Create new profile
-            const nickname = session.user.user_metadata?.name ||
+            const rawNickname = session.user.user_metadata?.name ||
               session.user.email?.split('@')[0] ||
               'Fisherman';
-            await userService.createProfile(session.user.id, nickname);
+            await userService.createProfile(session.user.id, truncateNickname(rawNickname));
           }
 
           // Redirect to home
