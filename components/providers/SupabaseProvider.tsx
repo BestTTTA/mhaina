@@ -117,15 +117,23 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
         });
         setIsAuthenticated(true);
 
-        try {
-          const profile = await withTimeout(
-            userService.getProfile(session.user.id),
-            5000,
-            'onAuthStateChange getProfile'
-          );
-          if (!cancelled && profile) setProfile(profile);
-        } catch (error) {
-          console.warn('[SupabaseProvider] onAuthStateChange profile fetch failed:', error);
+        // checkAuth() already fetched the profile on init; INITIAL_SESSION
+        // would just race with that call. TOKEN_REFRESHED / USER_UPDATED
+        // don't change the profile row at all. Only refetch on a real
+        // sign-in transition, and only when we don't already have it.
+        const shouldFetchProfile = event === 'SIGNED_IN';
+        const existingProfile = useAuthStore.getState().profile;
+        if (shouldFetchProfile && existingProfile?.user_id !== session.user.id) {
+          try {
+            const profile = await withTimeout(
+              userService.getProfile(session.user.id),
+              5000,
+              'onAuthStateChange getProfile'
+            );
+            if (!cancelled && profile) setProfile(profile);
+          } catch (error) {
+            console.warn('[SupabaseProvider] onAuthStateChange profile fetch failed:', error);
+          }
         }
       } else {
         setUser(null);

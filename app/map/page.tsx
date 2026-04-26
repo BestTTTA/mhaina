@@ -477,7 +477,7 @@ export default function MapPage() {
       </div>
 
       {/* Floating action buttons — bottom-right */}
-      <div className="absolute right-4 bottom-6 z-40 flex flex-col gap-3 items-end">
+      <div className="absolute right-4 bottom-24 z-40 flex flex-col gap-3 items-end">
         {user && (
           <Link
             href="/pin/new"
