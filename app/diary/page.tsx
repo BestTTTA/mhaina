@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
-import { pinService } from '@/lib/api';
+import { pinService, statsService } from '@/lib/api';
 import { FishingPin } from '@/lib/types';
 import { PinCard } from '@/components/ui/PinCard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -12,6 +12,7 @@ export default function DiaryPage() {
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.isLoading);
   const [pins, setPins] = useState<FishingPin[]>([]);
+  const [userRank, setUserRank] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [fetchFailed, setFetchFailed] = useState(false);
@@ -55,8 +56,15 @@ export default function DiaryPage() {
 
     (async () => {
       try {
-        const data = await pinService.getUserPins(user.id);
-        if (!cancelled) setPins(data);
+        // Rank fetch is best-effort: it must never block the diary list.
+        const [data, rank] = await Promise.all([
+          pinService.getUserPins(user.id),
+          statsService.getUserRank(user.id).catch(() => 0),
+        ]);
+        if (!cancelled) {
+          setPins(data);
+          setUserRank(rank > 0 ? rank : null);
+        }
       } catch (error) {
         console.error('Error fetching user pins:', error);
         if (!cancelled) setFetchFailed(true);
@@ -117,6 +125,7 @@ export default function DiaryPage() {
               pin={pin}
               onDelete={handleDelete}
               deleting={deletingId === pin.id}
+              shareInfo={{ userRank }}
             />
           ))}
         </div>

@@ -1,11 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Heart, ExternalLink, Trash2 } from 'lucide-react';
+import { Heart, ExternalLink, Trash2, Share2, Download } from 'lucide-react';
 import { FishingPin } from '@/lib/types';
 import { formatDateThai, formatNumber } from '@/lib/utils';
 import { getRankNameClasses, getRankMedal, isTopRank } from './rankStyles';
+import {
+  generateShareImage,
+  shareOrDownload,
+  downloadBlob,
+  buildShareFilename,
+} from '@/lib/shareImage';
+import { useToast } from '@/lib/toast';
 
 interface PinCardProps {
   pin: FishingPin;
@@ -16,14 +24,81 @@ interface PinCardProps {
   priority?: boolean;
   /** Rank within a leaderboard (1-based). 1–5 get colorful styling. */
   rank?: number;
+  /** When set, shows Share + Download buttons. `userRank` is rendered onto
+   *  the generated share image. */
+  shareInfo?: { userRank?: number | null };
 }
 
-export function PinCard({ pin, onLike, isLiked = false, onDelete, deleting = false, priority = false, rank }: PinCardProps) {
+export function PinCard({
+  pin,
+  onLike,
+  isLiked = false,
+  onDelete,
+  deleting = false,
+  priority = false,
+  rank,
+  shareInfo,
+}: PinCardProps) {
   const top = !!rank && isTopRank(rank);
   const speciesClass = top
     ? `${getRankNameClasses(rank!)} text-lg`
     : 'text-primary font-bold text-lg';
   const medal = rank ? getRankMedal(rank) : null;
+
+  const toast = useToast();
+  const [busy, setBusy] = useState<null | 'share' | 'download'>(null);
+
+  const buildBlob = async () => {
+    if (!pin.user) {
+      throw new Error('ข้อมูลโปรไฟล์ไม่ครบ — ลองรีเฟรชหน้านี้');
+    }
+    return await generateShareImage({
+      pin,
+      profile: { nickname: pin.user.nickname, avatar_url: pin.user.avatar_url },
+      rank: shareInfo?.userRank ?? null,
+    });
+  };
+
+  const handleShare = async () => {
+    if (busy) return;
+    setBusy('share');
+    try {
+      const blob = await buildBlob();
+      const filename = buildShareFilename(pin);
+      const result = await shareOrDownload(blob, filename, {
+        title: 'หมายน้า — ปักหมุดตกปลา',
+        text: `${pin.user?.nickname ?? 'นักตกปลา'} ตกปลา ${pin.fish_species}${
+          pin.fish_weight ? ` ${pin.fish_weight} กก.` : ''
+        }`,
+      });
+      if (result === 'downloaded') {
+        toast('info', 'บราวเซอร์ไม่รองรับการแชร์ — บันทึกรูปลงเครื่องแทน');
+      } else if (result === 'shared') {
+        toast('success', 'แชร์สำเร็จ');
+      }
+    } catch (err: any) {
+      console.error('[PinCard] share failed:', err);
+      toast('error', err?.message || 'แชร์ไม่สำเร็จ');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (busy) return;
+    setBusy('download');
+    try {
+      const blob = await buildBlob();
+      downloadBlob(blob, buildShareFilename(pin));
+      toast('success', 'บันทึกรูปแล้ว');
+    } catch (err: any) {
+      console.error('[PinCard] download failed:', err);
+      toast('error', err?.message || 'บันทึกรูปไม่สำเร็จ');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <div className="bg-dark-gray rounded-lg overflow-hidden hover:shadow-lg transition-all">
       {/* Image */}
@@ -83,6 +158,30 @@ export function PinCard({ pin, onLike, isLiked = false, onDelete, deleting = fal
             <p className="text-light text-sm mt-2 line-clamp-2">{pin.description}</p>
           )}
         </div>
+
+        {/* Share + Download — only when this is the user's own diary view */}
+        {shareInfo && (
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <button
+              type="button"
+              onClick={handleShare}
+              disabled={!!busy}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary hover:bg-opacity-80 text-light text-sm font-medium transition-all disabled:opacity-60"
+            >
+              <Share2 size={16} />
+              {busy === 'share' ? 'กำลังเตรียม...' : 'แชร์'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={!!busy}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-secondary border border-dark-gray hover:border-primary text-light text-sm font-medium transition-all disabled:opacity-60"
+            >
+              <Download size={16} />
+              {busy === 'download' ? 'กำลังเตรียม...' : 'บันทึกรูป'}
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="flex items-center justify-between pt-3 border-t border-secondary">
