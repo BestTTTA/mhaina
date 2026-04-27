@@ -208,7 +208,7 @@ export default function MapPage() {
   }
 
   return (
-    <div className="relative w-full h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div className="fixed left-0 right-0 top-14 bottom-20 overflow-hidden">
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         center={userLocation}
@@ -477,7 +477,7 @@ export default function MapPage() {
       </div>
 
       {/* Floating action buttons — bottom-right */}
-      <div className="absolute right-4 bottom-24 z-40 flex flex-col gap-3 items-end">
+      <div className="absolute right-4 bottom-4 z-40 flex flex-col gap-3 items-end">
         {user && (
           <Link
             href="/pin/new"
@@ -500,7 +500,7 @@ export default function MapPage() {
       </div>
 
       {!user && (
-        <div className="absolute bottom-6 left-4 right-20 bg-accent/20 border border-accent text-accent px-4 py-2 rounded-lg text-sm z-40">
+        <div className="absolute bottom-4 left-4 right-20 bg-accent/20 border border-accent text-accent px-4 py-2 rounded-lg text-sm z-40">
           กรุณาเข้าสู่ระบบเพื่อปักหมุด
         </div>
       )}
