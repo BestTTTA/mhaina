@@ -29,31 +29,15 @@ function readCachedSession():
   | null {
   if (typeof window === 'undefined') return null;
   try {
-    const allKeys: string[] = [];
     for (let i = 0; i < window.localStorage.length; i++) {
-      const k = window.localStorage.key(i);
-      if (k) allKeys.push(k);
-    }
-    const authKeys = allKeys.filter((k) => k.startsWith('sb-') && k.endsWith('-auth-token'));
-    console.log('[SupabaseProvider] localStorage keys:', allKeys);
-    console.log('[SupabaseProvider] auth keys found:', authKeys);
-
-    for (const key of authKeys) {
+      const key = window.localStorage.key(i);
+      if (!key || !key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
       const raw = window.localStorage.getItem(key);
       if (!raw) continue;
       const parsed = JSON.parse(raw);
-      console.log('[SupabaseProvider] parsed session shape:', {
-        key,
-        topLevelKeys: Object.keys(parsed || {}),
-        hasUser: !!parsed?.user,
-        hasCurrentSession: !!parsed?.currentSession,
-        userIdAtTop: parsed?.user?.id,
-        userIdNested: parsed?.currentSession?.user?.id,
-      });
       const sess = parsed?.user ? parsed : parsed?.currentSession;
       const u = sess?.user;
       if (u?.id) {
-        console.log('[SupabaseProvider] ✓ restored user from cache:', u.id);
         return {
           id: u.id,
           email: u.email || '',
@@ -61,7 +45,6 @@ function readCachedSession():
         };
       }
     }
-    console.log('[SupabaseProvider] no usable cached session found');
   } catch (e) {
     console.warn('[SupabaseProvider] failed to read cached session', e);
   }
@@ -126,9 +109,11 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
           user_metadata: session.user.user_metadata,
         });
         setIsAuthenticated(true);
-      } else if (!cached) {
-        // Only clear when there's no cached session either. If we already
-        // restored from localStorage, trust the cache until SIGNED_OUT fires.
+      } else {
+        // getSession resolved with no session — that's authoritative.
+        // Even if we optimistically restored from localStorage, the SDK
+        // has now confirmed there's no valid session (token expired,
+        // cleared elsewhere, etc.), so clear so RequireAuth can redirect.
         setUser(null);
         setProfile(null);
         setIsAuthenticated(false);
@@ -150,10 +135,6 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
       if (cancelled) return;
-      console.log('[SupabaseProvider] onAuthStateChange', event, {
-        hasSession: !!session,
-        userId: session?.user?.id,
-      });
 
       if (event === 'PASSWORD_RECOVERY' && typeof window !== 'undefined') {
         if (!window.location.pathname.startsWith('/auth/reset-password')) {
@@ -183,9 +164,10 @@ export function SupabaseProvider({ children }: SupabaseProviderProps) {
             fetchProfileFor(session.user.id, fallback);
           }
         }
-      } else if (event === 'SIGNED_OUT') {
-        // Only an explicit sign-out wipes state. INITIAL_SESSION with null
-        // can fire transiently during slow init and must NOT log the user out.
+      } else {
+        // Any event with no session means the SDK has confirmed there's no
+        // valid auth — INITIAL_SESSION with null on a fresh load, SIGNED_OUT,
+        // expired-and-unrefreshable. Clear so RequireAuth redirects to /auth.
         setUser(null);
         setProfile(null);
         setIsAuthenticated(false);
