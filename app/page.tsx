@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Flame } from 'lucide-react';
@@ -30,6 +31,7 @@ const POPUP_ADS = [
 const POPUP_INTERVAL_MS = 4000;
 
 export default function HomePage() {
+  const router = useRouter();
   const [topUsers, setTopUsers] = useState<UserStats[]>([]);
   const [popularPins, setPopularPins] = useState<FishingPin[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -200,9 +202,7 @@ export default function HomePage() {
               users={topUsers}
               title="นักตกปลาชั้นนำ"
               showViewMore
-              onViewMore={() => {
-                // Navigate to full ranking
-              }}
+              onViewMore={() => router.push('/ranking')}
             />
           </div>
         ) : null}
