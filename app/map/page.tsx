@@ -37,7 +37,9 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 const mapContainerStyle = { width: '100%', height: '100%' };
 const MARKER_SIZE = 48;
-const DEFAULT_DISTANCE = 50;
+// Default to "whole country" so users see every pin without having to widen
+// the radius themselves. The radius circle stays hidden in this mode.
+const DEFAULT_DISTANCE = UNLIMITED_DISTANCE_KM;
 
 const buildMapsDirectionsUrl = (lat: number, lng: number) =>
   `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
@@ -61,6 +63,8 @@ export default function MapPage() {
   } | null>(null);
 
   const [activePin, setActivePin] = useState<FishingPin | null>(null);
+  const [activePinLiked, setActivePinLiked] = useState(false);
+  const [likingPin, setLikingPin] = useState(false);
   const [locating, setLocating] = useState(false);
   const [searching, setSearching] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -110,6 +114,61 @@ export default function MapPage() {
 
     return () => clearTimeout(fallbackTimer);
   }, []);
+
+  // When the user opens an InfoWindow, fetch whether they've liked this pin
+  // and the authoritative like count (in case fishing_pins.likes_count is
+  // stale because the DB trigger isn't installed yet).
+  useEffect(() => {
+    if (!activePin) {
+      setActivePinLiked(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [liked, count] = await Promise.all([
+          user
+            ? pinService.hasUserLikedPin(activePin.id, user.id)
+            : Promise.resolve(false),
+          pinService.getPinLikeCount(activePin.id),
+        ]);
+        if (cancelled) return;
+        setActivePinLiked(liked);
+        if (count !== activePin.likes_count) {
+          setActivePin((prev) =>
+            prev && prev.id === activePin.id ? { ...prev, likes_count: count } : prev
+          );
+          setPins((prev) =>
+            prev.map((p) => (p.id === activePin.id ? { ...p, likes_count: count } : p))
+          );
+        }
+      } catch (err) {
+        console.warn('[MapPage] like status fetch failed:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activePin?.id, user?.id]);
+
+  const handleLikeActive = async () => {
+    if (!activePin || !user || likingPin) return;
+    setLikingPin(true);
+    try {
+      const { liked, count } = await pinService.likePin(activePin.id, user.id);
+      setActivePinLiked(liked);
+      setActivePin((prev) =>
+        prev && prev.id === activePin.id ? { ...prev, likes_count: count } : prev
+      );
+      setPins((prev) =>
+        prev.map((p) => (p.id === activePin.id ? { ...p, likes_count: count } : p))
+      );
+    } catch (err: any) {
+      console.error('[MapPage] like failed:', err);
+    } finally {
+      setLikingPin(false);
+    }
+  };
 
   useEffect(() => {
     const fetchPins = async () => {
@@ -369,10 +428,20 @@ export default function MapPage() {
               </p>
 
               <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200">
-                <span className="flex items-center gap-1 text-gray-600 text-sm">
-                  <Heart size={16} />
-                  {formatNumber(activePin.likes_count)}
-                </span>
+                <button
+                  type="button"
+                  onClick={handleLikeActive}
+                  disabled={!user || likingPin}
+                  aria-label={activePinLiked ? 'ยกเลิกถูกใจ' : 'ถูกใจ'}
+                  className={`flex items-center gap-1 text-sm transition-colors disabled:opacity-50 ${
+                    activePinLiked
+                      ? 'text-red-500'
+                      : 'text-gray-600 hover:text-red-500'
+                  }`}
+                >
+                  <Heart size={16} fill={activePinLiked ? 'currentColor' : 'none'} />
+                  {formatNumber(Math.max(0, activePin.likes_count))}
+                </button>
                 <Link
                   href={`/pin/${activePin.id}`}
                   className="flex items-center gap-1 text-blue-600 text-sm font-medium hover:underline"
