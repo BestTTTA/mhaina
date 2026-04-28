@@ -184,11 +184,15 @@ export const FISH_SPECIES = [
   'อื่นๆ',
 ];
 
-// Distance filters
+// Distance filters. UNLIMITED_DISTANCE_KM is a sentinel that means "no radius
+// limit" — the API skips the distance filter and the map hides the circle.
+export const UNLIMITED_DISTANCE_KM = 99999;
+
 export const DISTANCE_OPTIONS = [
   { label: '5 กม.', value: 5 },
   { label: '10 กม.', value: 10 },
   { label: '20 กม.', value: 20 },
   { label: '50 กม.', value: 50 },
   { label: '100 กม.', value: 100 },
+  { label: 'ทั้งประเทศ', value: UNLIMITED_DISTANCE_KM },
 ];

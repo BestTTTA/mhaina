@@ -127,3 +127,5 @@ CREATE POLICY "Users can delete their own diaries" ON public.fishing_diaries FOR
 INSERT INTO storage.buckets (id, name, public) VALUES
 ('avatars', 'avatars', true),
 ('fishing-images', 'fishing-images', true);
+
+ต้องการให้สามารถกดถูกใจหมายที่หน้า ปักหมุดตรงส่วนแสดงข้อมูลของหมุดได้ด้วย

@@ -10,45 +10,64 @@ import Link from 'next/link';
 import { formatDateThai, formatNumber } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useToast } from '@/lib/toast';
 
 export default function PinDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user } = useAuthStore();
   const router = useRouter();
+  const toast = useToast();
   const [pin, setPin] = useState<FishingPin | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
+  const [liking, setLiking] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchPin = async () => {
       try {
         const data = await pinService.getPinById(id);
-        setPin(data);
+        if (cancelled) return;
+        if (!data) {
+          setPin(null);
+          return;
+        }
+
+        // Authoritative like count from pin_likes — avoids the stale
+        // fishing_pins.likes_count when the DB trigger hasn't been installed.
+        const [count, liked] = await Promise.all([
+          pinService.getPinLikeCount(data.id),
+          user ? pinService.hasUserLikedPin(data.id, user.id) : Promise.resolve(false),
+        ]);
+        if (cancelled) return;
+        setPin({ ...data, likes_count: count });
+        setIsLiked(liked);
       } catch (error) {
         console.error('Error fetching pin:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchPin();
-  }, [id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user?.id]);
 
   const handleLike = async () => {
-    if (!pin || !user) return;
-
+    if (!pin || !user || liking) return;
+    setLiking(true);
     try {
-      const newLikeState = await pinService.likePin(pin.id, user.id);
-      setIsLiked(newLikeState);
-
-      // Update likes count
-      setPin({
-        ...pin,
-        likes_count: newLikeState ? pin.likes_count + 1 : pin.likes_count - 1,
-      });
-    } catch (error) {
+      const { liked, count } = await pinService.likePin(pin.id, user.id);
+      setIsLiked(liked);
+      setPin({ ...pin, likes_count: count });
+    } catch (error: any) {
       console.error('Error liking pin:', error);
+      toast('error', error?.message || 'ทำรายการไม่สำเร็จ');
+    } finally {
+      setLiking(false);
     }
   };
 
@@ -201,15 +220,15 @@ export default function PinDetailPage({ params }: { params: Promise<{ id: string
         {/* Like Button */}
         <button
           onClick={handleLike}
-          disabled={!user}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all font-medium ${
+          disabled={!user || liking}
+          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all font-medium disabled:opacity-60 ${
             isLiked
               ? 'bg-primary text-light'
               : 'bg-dark-gray text-gray-400 hover:text-primary'
           }`}
         >
           <Heart size={20} fill={isLiked ? 'currentColor' : 'none'} />
-          ถูกใจ ({formatNumber(pin.likes_count)})
+          ถูกใจ ({formatNumber(Math.max(0, pin.likes_count))})
         </button>
 
         {!user && (

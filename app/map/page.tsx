@@ -25,7 +25,13 @@ import {
 import { pinService } from '@/lib/api';
 import { FishingPin } from '@/lib/types';
 import { useAuthStore } from '@/lib/store';
-import { FISH_SPECIES, DISTANCE_OPTIONS, formatDateThai, formatNumber } from '@/lib/utils';
+import {
+  FISH_SPECIES,
+  DISTANCE_OPTIONS,
+  UNLIMITED_DISTANCE_KM,
+  formatDateThai,
+  formatNumber,
+} from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
@@ -180,9 +186,15 @@ export default function MapPage() {
     if (!userLocation) return;
     setCommittedSpecies(pendingSpecies);
     setCommittedDistance(pendingDistance);
-    setSearchArea({ center: userLocation, radiusKm: pendingDistance });
+    // "ทั้งประเทศ" hides the search circle and skips the auto-fit so the map
+    // doesn't zoom out to the entire planet.
+    if (pendingDistance >= UNLIMITED_DISTANCE_KM) {
+      setSearchArea(null);
+    } else {
+      setSearchArea({ center: userLocation, radiusKm: pendingDistance });
+      fitToRadius(userLocation, pendingDistance);
+    }
     setFiltersOpen(false);
-    fitToRadius(userLocation, pendingDistance);
   };
 
   const handleResetFilters = () => {
@@ -398,7 +410,11 @@ export default function MapPage() {
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-light text-sm font-semibold truncate">
-                {committedSpecies ? committedSpecies : `หมายในรัศมี ${committedDistance} กม.`}
+                {committedSpecies
+                  ? committedSpecies
+                  : committedDistance >= UNLIMITED_DISTANCE_KM
+                  ? 'หมายทั้งประเทศ'
+                  : `หมายในรัศมี ${committedDistance} กม.`}
               </p>
               <p className="text-gray-400 text-xs truncate">
                 {searching ? 'กำลังค้นหา...' : `พบ ${pins.length} หมาย`}

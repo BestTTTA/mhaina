@@ -113,21 +113,33 @@ export const pinService = {
   },
 
   async getNearbyPins(latitude: number, longitude: number, distanceKm: number = 50): Promise<FishingPin[]> {
+    // Bigger fetch budget when the user asks for the whole country — 100 was
+    // tight even for a small region.
+    const limit = distanceKm >= 1000 ? 500 : 200;
     const { data, error } = await supabase
       .from('fishing_pins')
       .select('*')
-      .limit(100);
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
     if (error) {
       console.error('Error fetching pins:', error);
       return [];
     }
 
-    const nearby = (data || []).filter((pin: { latitude: number; longitude: number; }) => {
-      const dist = calculateDistanceSimple(latitude, longitude, pin.latitude, pin.longitude);
-      return dist <= distanceKm;
-    });
-    return attachUserProfiles(nearby as FishingPin[]);
+    const filtered =
+      distanceKm >= 1000
+        ? (data || [])
+        : (data || []).filter((pin: { latitude: number; longitude: number }) => {
+            const dist = calculateDistanceSimple(
+              latitude,
+              longitude,
+              pin.latitude,
+              pin.longitude
+            );
+            return dist <= distanceKm;
+          });
+    return attachUserProfiles(filtered as FishingPin[]);
   },
 
   async getPinsByFishSpecies(species: string): Promise<FishingPin[]> {
@@ -166,28 +178,77 @@ export const pinService = {
     return withUser;
   },
 
-  async likePin(pinId: string, userId: string): Promise<boolean> {
-    // First check if already liked
-    const { data: existingLike } = await supabase
+  // Returns the authoritative like count for a pin by counting rows in
+  // pin_likes directly. Avoids depending on fishing_pins.likes_count, which is
+  // only kept in sync if the DB trigger has been installed.
+  async getPinLikeCount(pinId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('pin_likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('pin_id', pinId);
+    if (error) {
+      console.error('Error counting likes:', error);
+      return 0;
+    }
+    return count ?? 0;
+  },
+
+  async hasUserLikedPin(pinId: string, userId: string): Promise<boolean> {
+    const { data, error } = await supabase
       .from('pin_likes')
       .select('id')
       .eq('pin_id', pinId)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+    if (error) {
+      console.error('Error checking like status:', error);
+      return false;
+    }
+    return !!data;
+  },
 
+  async likePin(
+    pinId: string,
+    userId: string
+  ): Promise<{ liked: boolean; count: number }> {
+    // maybeSingle: 0 rows → null without throwing (.single() throws on 0 rows
+    // and that was breaking the first-time like).
+    const { data: existingLike, error: selectError } = await supabase
+      .from('pin_likes')
+      .select('id')
+      .eq('pin_id', pinId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (selectError) {
+      console.error('Error checking existing like:', selectError);
+      throw new Error(`เช็คสถานะถูกใจไม่สำเร็จ: ${selectError.message}`);
+    }
+
+    let liked: boolean;
     if (existingLike) {
-      // Unlike
-      await supabase
+      const { error } = await supabase
         .from('pin_likes')
         .delete()
         .eq('pin_id', pinId)
         .eq('user_id', userId);
-      return false;
+      if (error) {
+        console.error('Error removing like:', error);
+        throw new Error(`ยกเลิกถูกใจไม่สำเร็จ: ${error.message}`);
+      }
+      liked = false;
     } else {
-      // Like
-      await supabase.from('pin_likes').insert([{ pin_id: pinId, user_id: userId }]);
-      return true;
+      const { error } = await supabase
+        .from('pin_likes')
+        .insert([{ pin_id: pinId, user_id: userId }]);
+      if (error) {
+        console.error('Error adding like:', error);
+        throw new Error(`ถูกใจไม่สำเร็จ: ${error.message}`);
+      }
+      liked = true;
     }
+
+    const count = await this.getPinLikeCount(pinId);
+    return { liked, count };
   },
 
   async getUserPins(userId: string): Promise<FishingPin[]> {
