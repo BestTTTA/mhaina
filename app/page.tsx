@@ -7,9 +7,20 @@ import { Flame } from 'lucide-react';
 import { ImageCarousel } from '@/components/ui/ImageCarousel';
 import { RankingList } from '@/components/ui/RankingList';
 import { PinCard } from '@/components/ui/PinCard';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { statsService, pinService } from '@/lib/api';
 import { UserStats, FishingPin } from '@/lib/types';
+
+// Cap each home-page query so a slow Supabase response (common on first-visit
+// iPhone Safari over cellular) can never hang the whole UI.
+const HOME_FETCH_TIMEOUT_MS = 12000;
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
 
 // Drop replacement images at these paths (or rename and update here).
 const POPUP_ADS = [
@@ -21,7 +32,8 @@ const POPUP_INTERVAL_MS = 4000;
 export default function HomePage() {
   const [topUsers, setTopUsers] = useState<UserStats[]>([]);
   const [popularPins, setPopularPins] = useState<FishingPin[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingPins, setLoadingPins] = useState(true);
   const [showAdPopup, setShowAdPopup] = useState(true);
   const [popupIndex, setPopupIndex] = useState(0);
   const popupTouchStartXRef = useRef<number | null>(null);
@@ -64,22 +76,31 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [users, pins] = await Promise.all([
-          statsService.getTopFishermen(10),
-          pinService.getPopularPins(10),
-        ]);
-        setTopUsers(users);
-        setPopularPins(pins);
-      } catch (error) {
-        console.error('Error fetching home data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    let cancelled = false;
 
-    fetchData();
+    // Fire each fetch independently so a slow query can't block the other —
+    // and clamp each with a timeout so the UI never sits on a spinner forever.
+    withTimeout(statsService.getTopFishermen(10), HOME_FETCH_TIMEOUT_MS, 'getTopFishermen')
+      .then((users) => {
+        if (!cancelled) setTopUsers(users);
+      })
+      .catch((error) => console.warn('[HomePage] top fishermen fetch failed:', error))
+      .finally(() => {
+        if (!cancelled) setLoadingUsers(false);
+      });
+
+    withTimeout(pinService.getPopularPins(10), HOME_FETCH_TIMEOUT_MS, 'getPopularPins')
+      .then((pins) => {
+        if (!cancelled) setPopularPins(pins);
+      })
+      .catch((error) => console.warn('[HomePage] popular pins fetch failed:', error))
+      .finally(() => {
+        if (!cancelled) setLoadingPins(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -98,10 +119,6 @@ export default function HomePage() {
     '/ads/carousel/cad-1.png',
     '/ads/carousel/cad-1.png',
   ];
-
-  if (loading) {
-    return <LoadingSpinner fullScreen />;
-  }
 
   return (
     <>
@@ -168,7 +185,16 @@ export default function HomePage() {
         </div>
 
         {/* Top Fishermen */}
-        {topUsers.length > 0 && (
+        {loadingUsers ? (
+          <div className="space-y-2">
+            <div className="h-6 w-40 rounded bg-dark-gray animate-pulse" />
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-14 rounded-lg bg-dark-gray animate-pulse" />
+              ))}
+            </div>
+          </div>
+        ) : topUsers.length > 0 ? (
           <div>
             <RankingList
               users={topUsers}
@@ -179,10 +205,17 @@ export default function HomePage() {
               }}
             />
           </div>
-        )}
+        ) : null}
 
         {/* Popular Pins */}
-        {popularPins.length > 0 && (
+        {loadingPins ? (
+          <div className="space-y-3">
+            <div className="h-7 w-44 rounded bg-dark-gray animate-pulse" />
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-72 rounded-lg bg-dark-gray animate-pulse" />
+            ))}
+          </div>
+        ) : popularPins.length > 0 ? (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-extrabold tracking-wide flex items-center gap-2">
@@ -208,10 +241,10 @@ export default function HomePage() {
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Empty State */}
-        {!topUsers.length && !popularPins.length && (
+        {/* Empty state — only after BOTH fetches finished and returned nothing */}
+        {!loadingUsers && !loadingPins && !topUsers.length && !popularPins.length && (
           <div className="text-center py-12">
             <p className="text-gray-400 mb-4">ยังไม่มีข้อมูล</p>
             <Link
